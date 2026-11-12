@@ -1,36 +1,16 @@
-name: Temperature Converter CI/CD
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 
-on:
-  push:
-    branches: [ "main" ]
+WORKDIR /app
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+COPY pom.xml .
+COPY src ./src
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+RUN mvn clean package
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
+FROM eclipse-temurin:17-jre
 
-      - name: Run JUnit Tests
-        run: mvn clean test
+WORKDIR /app
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+COPY --from=build /app/target/classes ./classes
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/temperature-converter:latest
+CMD ["java", "-cp", "classes", "com.temperature.TemperatureConverter"]
